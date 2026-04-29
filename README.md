@@ -44,6 +44,30 @@ the acceleration data, and an overlay comparison of the engine-off
 (problem 1) vs. engine-on compensated (problem 2) elevation series
 into `examples/plots/`.
 
+## Process your own CSV files (CLI)
+
+The package ships a thin CSV CLI that wraps the three pipelines.  Input
+files are expected to have the elevation reading (in **mm**) in column 2
+and, for the engine-on case, the vertical accelerometer reading
+(m/s²) in column 3.  A header row is auto-detected.
+
+```bash
+# 1. engine off  -> Result_C001.csv
+python -m lp_optimize idle-off C001.csv Result_C001.csv --fs 1000
+
+# 2. engine on  + accelerometer  -> Result_C040.csv
+python -m lp_optimize idle-on  C040.csv Result_C040.csv --fs 1000
+
+# 3. optimise Result_C040.csv to match Result_C001.csv
+python -m lp_optimize align Result_C001.csv Result_C040.csv Result_C040_aligned.csv
+```
+
+After ``pip install -e .`` the same commands are available as
+``lp-optimize idle-off ...`` etc.  Output ``Result_*.csv`` files have
+two columns: ``t_s`` and ``elevation_mm``.  By default the output is
+decimated to 100 Hz; pass ``--no-decimate`` to keep the input rate.
+
+
 ## Generate line plots from your own data
 
 The plotting helpers are exposed at the package top level:
@@ -77,3 +101,5 @@ pytest -q
 | `lp_optimize.metrics`       | std / RMS / Welch PSD                                   |
 | `lp_optimize.plotting`      | Line plots for elevation / acceleration + comparison    |
 | `lp_optimize.pipeline`      | The three end-to-end pipelines                          |
+| `lp_optimize.io_csv`        | CSV read/write helpers (mm ↔ m conversion)              |
+| `lp_optimize.cli`           | `lp-optimize` CLI: `idle-off` / `idle-on` / `align`     |
