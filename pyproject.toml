@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lp_optimize"
+version = "0.1.0"
+description = "Elevation data optimization for road roughness (IRI) computation."
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.23",
+    "scipy>=1.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
