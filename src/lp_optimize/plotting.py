@@ -91,7 +91,10 @@ def plot_elevation(
     *,
     title: str = "Processed elevation",
     label: str = "elevation",
-    ylabel: str = "elevation (m)",
+    ylabel: str = "elevation (mm)",
+    unit_scale: float = 1e3,
+    figsize: tuple[float, float] = (18.0, 8.0),
+    dpi: int = 180,
 ) -> str:
     """Save a line plot of a (processed) elevation time series.
 
@@ -104,7 +107,7 @@ def plot_elevation(
     path
         Output image path (file extension determines the format, e.g. ``.png``).
     """
-    y = np.asarray(elevation, dtype=float).ravel()
+    y = np.asarray(elevation, dtype=float).ravel() * float(unit_scale)
     t = _time_axis(y.size, fs)
     return _save_line_plot(
         t,
@@ -113,6 +116,8 @@ def plot_elevation(
         title=title,
         xlabel="time (s)",
         ylabel=ylabel,
+        figsize=figsize,
+        dpi=dpi,
     )
 
 
@@ -124,6 +129,8 @@ def plot_acceleration(
     title: str = "Acceleration",
     labels: Sequence[str] | None = None,
     ylabel: str = "acceleration (m/s²)",
+    figsize: tuple[float, float] = (18.0, 8.0),
+    dpi: int = 180,
 ) -> str:
     """Save a line plot of an acceleration time series.
 
@@ -162,6 +169,8 @@ def plot_acceleration(
         title=title,
         xlabel="time (s)",
         ylabel=ylabel,
+        figsize=figsize,
+        dpi=dpi,
     )
 
 
@@ -174,7 +183,10 @@ def plot_comparison(
     label_a: str = "series A",
     label_b: str = "series B",
     title: str = "Comparison",
-    ylabel: str = "elevation (m)",
+    ylabel: str = "elevation (mm)",
+    unit_scale: float = 1e3,
+    figsize: tuple[float, float] = (18.0, 8.0),
+    dpi: int = 180,
 ) -> str:
     """Save a line plot overlaying two series sampled at the same rate.
 
@@ -182,8 +194,8 @@ def plot_comparison(
     common time axis starting at ``t = 0`` and truncated to the shorter
     of the two so the comparison is well-defined.
     """
-    a = np.asarray(series_a, dtype=float).ravel()
-    b = np.asarray(series_b, dtype=float).ravel()
+    a = np.asarray(series_a, dtype=float).ravel() * float(unit_scale)
+    b = np.asarray(series_b, dtype=float).ravel() * float(unit_scale)
     n = int(min(a.size, b.size))
     if n == 0:
         raise ValueError("series_a and series_b must be non-empty")
@@ -197,4 +209,6 @@ def plot_comparison(
         title=title,
         xlabel="time (s)",
         ylabel=ylabel,
+        figsize=figsize,
+        dpi=dpi,
     )

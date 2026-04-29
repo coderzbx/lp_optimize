@@ -62,7 +62,7 @@ def accel_to_displacement(
 def lms_anc(
     primary: np.ndarray,
     reference: np.ndarray,
-    n_taps: int = 64,
+    n_taps: int = 128,
     mu: float = 0.05,
     eps: float = 1e-6,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -79,7 +79,7 @@ def lms_anc(
         Reference correlated with the noise but not with the desired signal
         (e.g. body vertical displacement integrated from IMU).
     n_taps : int
-        FIR length.  64 taps at 1 kHz cover ~64 ms of memory, enough for
+        FIR length.  128 taps at 2 kHz cover ~64 ms of memory, enough for
         the dominant 1–15 Hz body modes.
     mu : float
         Step size (0–1 for NLMS).  Smaller = more stable, slower.

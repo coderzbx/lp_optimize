@@ -11,12 +11,14 @@ import pytest
 from lp_optimize.cli import align_to_reference, main as cli_main
 from lp_optimize.io_csv import (
     read_input_csv,
+    read_input_csv_with_timestamps,
     read_result_csv,
+    read_result_csv_full,
     write_result_csv,
 )
 
 
-FS = 1000.0
+FS = 2000.0
 
 
 def _write_csv(path: Path, rows: list[list[object]], header: list[str] | None) -> None:
@@ -79,6 +81,20 @@ def test_read_input_csv_without_header_with_accel(tmp_path: Path) -> None:
     np.testing.assert_allclose(a, [0.1, -0.2])
 
 
+def test_read_input_csv_with_timestamps(tmp_path: Path) -> None:
+    p = tmp_path / "C001.csv"
+    _write_csv(
+        p,
+        rows=[[10.0, 1500.0, 0.1], [10.001, 1501.0, -0.2]],
+        header=["timestamp_s", "elev_mm", "a_z"],
+    )
+    ts, elev_m, a = read_input_csv_with_timestamps(p, need_accel=True)
+    np.testing.assert_allclose(ts, [10.0, 10.001])
+    np.testing.assert_allclose(elev_m, [1.5, 1.501])
+    assert a is not None
+    np.testing.assert_allclose(a, [0.1, -0.2])
+
+
 def test_read_input_csv_missing_accel_raises(tmp_path: Path) -> None:
     p = tmp_path / "bad.csv"
     _write_csv(p, rows=[[0, 1500.0]], header=None)
@@ -89,10 +105,19 @@ def test_read_input_csv_missing_accel_raises(tmp_path: Path) -> None:
 def test_write_then_read_result_csv_round_trip(tmp_path: Path) -> None:
     p = tmp_path / "Result.csv"
     elev_m = np.linspace(0.0, 0.001, 20)
-    write_result_csv(p, elev_m, fs=100.0)
+    fluct_m = elev_m - np.median(elev_m)
+    ts = 1000.0 + np.arange(20) * 0.01
+    write_result_csv(p, elev_m, fs=100.0, fluctuation_m=fluct_m, timestamps_s=ts)
     elev_back, fs_back = read_result_csv(p)
     np.testing.assert_allclose(elev_back, elev_m, atol=1e-9)
     assert abs(fs_back - 100.0) < 1e-6
+    t_s, elev_full, fluct_full, ts_full = read_result_csv_full(p)
+    np.testing.assert_allclose(t_s, np.arange(20) / 100.0)
+    np.testing.assert_allclose(elev_full, elev_m, atol=1e-9)
+    assert fluct_full is not None
+    np.testing.assert_allclose(fluct_full, fluct_m, atol=1e-9)
+    assert ts_full is not None
+    np.testing.assert_allclose(ts_full, ts, atol=1e-9)
 
 
 # ---------------------------------------------------------------------------
@@ -104,10 +129,11 @@ def test_align_to_reference_matches_std() -> None:
     rng = np.random.default_rng(0)
     fs = 100.0
     n = 4096
-    ref = rng.normal(0.0, 1e-4, n)
-    tgt = rng.normal(0.0, 5e-4, n)  # 5x noisier
+    ref = 1.5 + rng.normal(0.0, 1e-4, n)
+    tgt = 1.8 + rng.normal(0.0, 5e-4, n)  # 5x noisier
     aligned = align_to_reference(tgt, ref, fs=fs)
     assert abs(np.std(aligned) - np.std(ref)) / np.std(ref) < 0.05
+    assert abs(np.median(aligned) - np.median(tgt)) < 1e-4
 
 
 # ---------------------------------------------------------------------------
@@ -138,10 +164,10 @@ def test_cli_idle_off_then_idle_on_then_align(tmp_path: Path) -> None:
     r2 = tmp_path / "Result_C040.csv"
     r3 = tmp_path / "Result_C040_aligned.csv"
 
-    rc = cli_main(["idle-off", str(c001), str(r1), "--fs", "1000"])
+    rc = cli_main(["idle-off", str(c001), str(r1), "--fs", "2000"])
     assert rc == 0 and r1.exists()
 
-    rc = cli_main(["idle-on", str(c040), str(r2), "--fs", "1000"])
+    rc = cli_main(["idle-on", str(c040), str(r2), "--fs", "2000"])
     assert rc == 0 and r2.exists()
 
     rc = cli_main(["align", str(r1), str(r2), str(r3)])
@@ -152,3 +178,9 @@ def test_cli_idle_off_then_idle_on_then_align(tmp_path: Path) -> None:
     assert abs(fs_aligned - fs_ref) < 1e-6
     # After alignment the std should match the reference within ~5 %.
     assert abs(np.std(aligned_m) - np.std(ref_m)) / np.std(ref_m) < 0.1
+    assert abs(np.median(ref_m) - np.median(elev_off_mm * 1e-3)) < 5e-3
+    assert abs(np.median(aligned_m) - np.median(read_result_csv(r2)[0])) < 5e-3
+
+    with open(r1, "r", encoding="utf-8") as fh:
+        header = fh.readline().strip()
+    assert header == "t_s,elevation_mm,fluctuation_mm,timestamp_s"

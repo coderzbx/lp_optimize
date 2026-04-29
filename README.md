@@ -53,18 +53,21 @@ and, for the engine-on case, the vertical accelerometer reading
 
 ```bash
 # 1. engine off  -> Result_C001.csv
-python -m lp_optimize idle-off C001.csv Result_C001.csv --fs 1000
+python -m lp_optimize idle-off C001.csv Result_C001.csv --fs 2000
 
 # 2. engine on  + accelerometer  -> Result_C040.csv
-python -m lp_optimize idle-on  C040.csv Result_C040.csv --fs 1000
+python -m lp_optimize idle-on  C040.csv Result_C040.csv --fs 2000
 
 # 3. optimise Result_C040.csv to match Result_C001.csv
 python -m lp_optimize align Result_C001.csv Result_C040.csv Result_C040_aligned.csv
 ```
 
 After ``pip install -e .`` the same commands are available as
-``lp-optimize idle-off ...`` etc.  Output ``Result_*.csv`` files have
-two columns: ``t_s`` and ``elevation_mm``.  By default the output is
+``lp-optimize idle-off ...`` etc.  Output ``Result_*.csv`` files keep the
+processed time axis ``t_s`` plus the absolute optimized elevation
+``elevation_mm``.  When available they also include the zero-mean
+``fluctuation_mm`` column and the source ``timestamp_s`` column for later
+alignment / comparison with other result files.  By default the output is
 decimated to 100 Hz; pass ``--no-decimate`` to keep the input rate.
 
 
@@ -76,7 +79,7 @@ The plotting helpers are exposed at the package top level:
 from lp_optimize import plot_elevation, plot_acceleration, plot_comparison
 
 plot_elevation(result1.elevation, fs=result1.fs, path="elev1.png")
-plot_acceleration(a_z, fs=1000.0, path="accel.png")
+plot_acceleration(a_z, fs=2000.0, path="accel.png")
 plot_comparison(result1.elevation, result2.elevation, fs=result1.fs,
                 path="compare.png", label_a="engine off", label_b="engine on")
 ```

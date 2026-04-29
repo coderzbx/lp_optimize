@@ -6,7 +6,7 @@ import numpy as np
 from scipy import signal
 
 
-def hampel_filter(x: np.ndarray, window: int = 11, n_sigma: float = 3.0) -> np.ndarray:
+def hampel_filter(x: np.ndarray, window: int = 21, n_sigma: float = 3.0) -> np.ndarray:
     """Remove impulsive outliers (spikes) using a Hampel filter.
 
     For each sample the local median ``m`` and median absolute deviation
@@ -17,8 +17,8 @@ def hampel_filter(x: np.ndarray, window: int = 11, n_sigma: float = 3.0) -> np.n
     ----------
     x : np.ndarray
         1-D input signal.
-    window : int, default 11
-        Window length (must be odd).  ~10 ms at 1 kHz is a good default.
+    window : int, default 21
+        Window length (must be odd).  ~10.5 ms at 2 kHz is a good default.
     n_sigma : float, default 3.0
         Threshold in robust-sigma units.
 

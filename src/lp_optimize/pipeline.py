@@ -26,6 +26,7 @@ class IdleResult:
     """Result of an "idle" (stationary vehicle) processing pipeline."""
 
     elevation: np.ndarray
+    fluctuation: np.ndarray
     fs: float
     metrics: StdRms
     psd_freq: np.ndarray = field(repr=False)
@@ -51,9 +52,9 @@ class DrivingResult:
 
 def pipeline_idle_off(
     elevation: np.ndarray,
-    fs: float = 1000.0,
+    fs: float = 2000.0,
     *,
-    hampel_window: int = 11,
+    hampel_window: int = 21,
     hampel_sigma: float = 3.0,
     drift_cutoff: float = 0.05,
     smooth_cutoff: float = 100.0,
@@ -62,11 +63,14 @@ def pipeline_idle_off(
     """Process problem-1 data (engine off, vehicle still).
 
     Pipeline: outlier removal -> gap interpolation -> low-frequency
-    de-trend -> low-pass smoothing -> optional decimation.
+    de-trend -> low-pass smoothing -> optional decimation.  The returned
+    ``elevation`` keeps a robust absolute baseline; the zero-mean dynamic
+    component is exposed separately as ``fluctuation``.
     """
     x = np.asarray(elevation, dtype=float)
     x = interpolate_gaps(x)
     x = hampel_filter(x, window=hampel_window, n_sigma=hampel_sigma)
+    baseline = float(np.median(x))
     x = highpass_detrend(x, fs=fs, fc=drift_cutoff)
     x = butter_filter(x, fs=fs, cutoff=smooth_cutoff, btype="lowpass", order=4)
     fs_out = fs
@@ -74,7 +78,14 @@ def pipeline_idle_off(
         x, fs_out = antialias_decimate(x, fs=fs, fs_out=decimate_to)
     metrics = std_rms(x)
     f, p = welch_psd(x, fs=fs_out)
-    return IdleResult(elevation=x, fs=fs_out, metrics=metrics, psd_freq=f, psd=p)
+    return IdleResult(
+        elevation=baseline + x,
+        fluctuation=x,
+        fs=fs_out,
+        metrics=metrics,
+        psd_freq=f,
+        psd=p,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -85,14 +96,14 @@ def pipeline_idle_off(
 def pipeline_idle_on(
     elevation: np.ndarray,
     accel_z: np.ndarray,
-    fs: float = 1000.0,
+    fs: float = 2000.0,
     *,
-    hampel_window: int = 11,
+    hampel_window: int = 21,
     hampel_sigma: float = 3.0,
     drift_cutoff: float = 0.05,
     accel_band: tuple[float, float] = (0.5, 80.0),
     use_anc: bool = True,
-    anc_taps: int = 64,
+    anc_taps: int = 128,
     anc_mu: float = 0.05,
     smooth_cutoff: float = 100.0,
     decimate_to: float | None = 100.0,
@@ -118,11 +129,11 @@ def pipeline_idle_on(
         raise ValueError("elevation and accel_z must have the same shape")
     x = interpolate_gaps(x)
     x = hampel_filter(x, window=hampel_window, n_sigma=hampel_sigma)
+    z_body = accel_to_displacement(a, fs=fs, band=accel_band)
+    baseline = float(np.median(x + z_body))
     # Remove DC / drift first so the (zero-mean) reference and the
     # primary live on comparable scales -- otherwise LMS becomes unstable.
     x = highpass_detrend(x, fs=fs, fc=drift_cutoff)
-
-    z_body = accel_to_displacement(a, fs=fs, band=accel_band)
     # Laser reads (true ground - body z); compensate: add body displacement back.
     x_comp = x + z_body
 
@@ -139,7 +150,14 @@ def pipeline_idle_on(
 
     metrics = std_rms(x_comp)
     f, p = welch_psd(x_comp, fs=fs_out)
-    return IdleResult(elevation=x_comp, fs=fs_out, metrics=metrics, psd_freq=f, psd=p)
+    return IdleResult(
+        elevation=baseline + x_comp,
+        fluctuation=x_comp,
+        fs=fs_out,
+        metrics=metrics,
+        psd_freq=f,
+        psd=p,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -152,9 +170,9 @@ def pipeline_driving(
     accel_xyz: np.ndarray,
     gyro_xyz: np.ndarray,
     speed: np.ndarray,
-    fs: float = 1000.0,
+    fs: float = 2000.0,
     *,
-    hampel_window: int = 11,
+    hampel_window: int = 21,
     hampel_sigma: float = 3.0,
     accel_band: tuple[float, float] = (0.3, 40.0),
     use_anc: bool = True,
