@@ -13,6 +13,8 @@ independently.
 from .pipeline import pipeline_idle_off, pipeline_idle_on, pipeline_driving
 from .metrics import std_rms, welch_psd
 from .plotting import plot_elevation, plot_acceleration, plot_comparison
+from .io_csv import read_input_csv, read_result_csv, write_result_csv
+from .cli import align_to_reference
 
 __all__ = [
     "pipeline_idle_off",
@@ -23,4 +25,8 @@ __all__ = [
     "plot_elevation",
     "plot_acceleration",
     "plot_comparison",
+    "read_input_csv",
+    "read_result_csv",
+    "write_result_csv",
+    "align_to_reference",
 ]

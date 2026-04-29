@@ -13,5 +13,8 @@ dependencies = [
     "matplotlib>=3.6",
 ]
 
+[project.scripts]
+lp-optimize = "lp_optimize.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
