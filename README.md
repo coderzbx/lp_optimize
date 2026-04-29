@@ -39,6 +39,24 @@ pip install -r requirements.txt
 python -m examples.demo
 ```
 
+The demo also auto-generates line plots of the processed elevation,
+the acceleration data, and an overlay comparison of the engine-off
+(problem 1) vs. engine-on compensated (problem 2) elevation series
+into `examples/plots/`.
+
+## Generate line plots from your own data
+
+The plotting helpers are exposed at the package top level:
+
+```python
+from lp_optimize import plot_elevation, plot_acceleration, plot_comparison
+
+plot_elevation(result1.elevation, fs=result1.fs, path="elev1.png")
+plot_acceleration(a_z, fs=1000.0, path="accel.png")
+plot_comparison(result1.elevation, result2.elevation, fs=result1.fs,
+                path="compare.png", label_a="engine off", label_b="engine on")
+```
+
 ## Run the tests
 
 ```bash
@@ -57,4 +75,5 @@ pytest -q
 | `lp_optimize.profile`       | Time → space resampling (uniform Δs)                    |
 | `lp_optimize.iri`           | Golden Car quarter-car IRI (ASTM E1926)                 |
 | `lp_optimize.metrics`       | std / RMS / Welch PSD                                   |
+| `lp_optimize.plotting`      | Line plots for elevation / acceleration + comparison    |
 | `lp_optimize.pipeline`      | The three end-to-end pipelines                          |
