@@ -1,7 +1,13 @@
 # lp_optimize
 
 Elevation-data optimization for road roughness (IRI) computation, addressing
-the three questions in `需求文档`:
+the three questions in `需求文档`.
+
+> **设计思路（中文）**: 详见 [`docs/思路.md`](docs/思路.md)，文档中按问题
+> 1 / 2 / 3 系统说明了物理背景、信号特征、处理流程、关键参数、对应代码入口
+> 与工程经验。代码实现与该文档一一对应。
+
+## 三个管线概要
 
 1. **熄火静止** (`pipeline_idle_off`) – cleans a 30-min idle-off laser trace
    via Hampel outlier removal, low-frequency de-trending, low-pass smoothing
