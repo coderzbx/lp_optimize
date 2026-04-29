@@ -1,7 +1,0 @@
-Metadata-Version: 2.4
-Name: lp_optimize
-Version: 0.1.0
-Summary: Elevation data optimization for road roughness (IRI) computation.
-Requires-Python: >=3.9
-Requires-Dist: numpy>=1.23
-Requires-Dist: scipy>=1.10

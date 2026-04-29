@@ -60,7 +60,7 @@ def interpolate_gaps(x: np.ndarray, max_gap: int | None = None) -> np.ndarray:
     x_interp[nan] = np.interp(idx[nan], idx[good], x[good])
     if max_gap is not None and max_gap > 0:
         # restore NaN where the gap is too long
-        edges = np.diff(np.concatenate(([0], nan.view(np.int8), [0])))
+        edges = np.diff(np.concatenate(([0], nan.astype(np.int8), [0])))
         starts = np.where(edges == 1)[0]
         ends = np.where(edges == -1)[0]
         for s, e in zip(starts, ends):

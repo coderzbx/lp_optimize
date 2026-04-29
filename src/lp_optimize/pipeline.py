@@ -13,6 +13,7 @@ from .imu import accel_to_displacement, lms_anc
 from .iri import compute_iri
 from .metrics import std_rms, welch_psd, StdRms
 from .preprocessing import hampel_filter, highpass_detrend, interpolate_gaps
+from .profile import time_to_space
 
 
 # ---------------------------------------------------------------------------
@@ -214,8 +215,6 @@ def pipeline_driving(
         h_comp, _ = lms_anc(h_comp, z_body, n_taps=anc_taps, mu=anc_mu)
 
     # 5. time -> space
-    from .profile import time_to_space  # local import to avoid cycles
-
     s, h_s = time_to_space(h_comp, v, fs=fs, ds=ds, min_speed=min_speed)
 
     # 6. spatial band-pass: wavelengths 0.5--50 m -> spatial freq 0.02--2 cyc/m.

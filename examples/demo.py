@@ -94,13 +94,13 @@ def main() -> None:
     laser_off = _synth_idle_off(rng)
     r1 = pipeline_idle_off(laser_off, fs=FS)
     print("[problem 1] engine off, vehicle still")
-    print(f"  std={r1.metrics.std*1e3:.4f} mm  rms={r1.metrics.rms:.4f} m  pp={r1.metrics.peak2peak*1e3:.3f} mm")
+    print(f"  std={r1.metrics.std*1e3:.4f} mm  rms={r1.metrics.rms*1e3:.4f} mm  pp={r1.metrics.peak2peak*1e3:.3f} mm")
 
     # Problem 2
     laser_on, a_z = _synth_idle_on(rng)
     r2 = pipeline_idle_on(laser_on, a_z, fs=FS)
     print("[problem 2] engine on, vehicle still + accelerometer")
-    print(f"  std={r2.metrics.std*1e3:.4f} mm  rms={r2.metrics.rms:.4f} m  pp={r2.metrics.peak2peak*1e3:.3f} mm")
+    print(f"  std={r2.metrics.std*1e3:.4f} mm  rms={r2.metrics.rms*1e3:.4f} mm  pp={r2.metrics.peak2peak*1e3:.3f} mm")
 
     # Problem 3
     drv = _synth_driving(rng)
