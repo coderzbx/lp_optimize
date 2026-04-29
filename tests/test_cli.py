@@ -6,6 +6,7 @@ import csv
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from lp_optimize.cli import align_to_reference, main as cli_main
 from lp_optimize.io_csv import (
@@ -81,12 +82,8 @@ def test_read_input_csv_without_header_with_accel(tmp_path: Path) -> None:
 def test_read_input_csv_missing_accel_raises(tmp_path: Path) -> None:
     p = tmp_path / "bad.csv"
     _write_csv(p, rows=[[0, 1500.0]], header=None)
-    try:
+    with pytest.raises(ValueError):
         read_input_csv(p, need_accel=True)
-    except ValueError:
-        pass
-    else:  # pragma: no cover
-        raise AssertionError("expected ValueError")
 
 
 def test_write_then_read_result_csv_round_trip(tmp_path: Path) -> None:
