@@ -1,17 +1,33 @@
 """Synthetic-data demo of the three pipelines.
 
 Run with:  python -m examples.demo  (after `pip install -e .`).
+
+In addition to printing summary metrics for each pipeline, this demo
+auto-generates line plots of the processed elevation and acceleration
+data into the ``examples/plots/`` directory, and produces a side-by-side
+comparison plot for the two idle datasets (engine off vs. engine on),
+which are designed to have matching post-processing fluctuation levels.
 """
 
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
-from lp_optimize import pipeline_idle_off, pipeline_idle_on, pipeline_driving
+from lp_optimize import (
+    pipeline_idle_off,
+    pipeline_idle_on,
+    pipeline_driving,
+    plot_elevation,
+    plot_acceleration,
+    plot_comparison,
+)
 
 
 FS = 1000.0
 DURATION = 60.0  # 1 minute is enough for a demo
+PLOT_DIR = os.path.join(os.path.dirname(__file__), "plots")
 
 
 def _synth_idle_off(rng: np.random.Generator) -> np.ndarray:
@@ -89,18 +105,52 @@ def _synth_driving(rng: np.random.Generator) -> dict:
 
 def main() -> None:
     rng = np.random.default_rng(0)
+    os.makedirs(PLOT_DIR, exist_ok=True)
 
     # Problem 1
     laser_off = _synth_idle_off(rng)
     r1 = pipeline_idle_off(laser_off, fs=FS)
     print("[problem 1] engine off, vehicle still")
     print(f"  std={r1.metrics.std*1e3:.4f} mm  rms={r1.metrics.rms*1e3:.4f} mm  pp={r1.metrics.peak2peak*1e3:.3f} mm")
+    plot_elevation(
+        r1.elevation,
+        fs=r1.fs,
+        path=os.path.join(PLOT_DIR, "problem1_elevation.png"),
+        title="Problem 1 -- processed elevation (engine off)",
+        label="engine off",
+    )
 
     # Problem 2
     laser_on, a_z = _synth_idle_on(rng)
     r2 = pipeline_idle_on(laser_on, a_z, fs=FS)
     print("[problem 2] engine on, vehicle still + accelerometer")
     print(f"  std={r2.metrics.std*1e3:.4f} mm  rms={r2.metrics.rms*1e3:.4f} mm  pp={r2.metrics.peak2peak*1e3:.3f} mm")
+    plot_elevation(
+        r2.elevation,
+        fs=r2.fs,
+        path=os.path.join(PLOT_DIR, "problem2_elevation.png"),
+        title="Problem 2 -- processed elevation (engine on, compensated)",
+        label="engine on (compensated)",
+    )
+    plot_acceleration(
+        a_z,
+        fs=FS,
+        path=os.path.join(PLOT_DIR, "problem2_acceleration.png"),
+        title="Problem 2 -- vertical accelerometer",
+        labels=["a_z"],
+    )
+
+    # Comparison: the two idle datasets are designed to have matching
+    # fluctuation levels after processing -- overlay them on one plot.
+    plot_comparison(
+        r1.elevation,
+        r2.elevation,
+        fs=min(r1.fs, r2.fs),
+        path=os.path.join(PLOT_DIR, "idle_off_vs_on_elevation.png"),
+        label_a="engine off (problem 1)",
+        label_b="engine on, compensated (problem 2)",
+        title="Processed elevation -- engine off vs. engine on",
+    )
 
     # Problem 3
     drv = _synth_driving(rng)
@@ -114,6 +164,21 @@ def main() -> None:
     print("[problem 3] driving + IMU")
     print(f"  profile length={r3.profile_s[-1]:.1f} m  IRI={r3.iri_m_per_km:.3f} m/km")
     print(f"  profile std={r3.metrics.std*1e3:.3f} mm")
+    plot_elevation(
+        r3.elevation_t,
+        fs=r3.fs,
+        path=os.path.join(PLOT_DIR, "problem3_elevation_time.png"),
+        title="Problem 3 -- compensated elevation (time domain)",
+        label="elevation",
+    )
+    plot_acceleration(
+        drv["accel"],
+        fs=FS,
+        path=os.path.join(PLOT_DIR, "problem3_acceleration.png"),
+        title="Problem 3 -- 3-axis accelerometer",
+    )
+
+    print(f"\nLine plots saved under: {PLOT_DIR}")
 
 
 if __name__ == "__main__":
