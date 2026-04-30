@@ -4,6 +4,7 @@ from lp_optimize.preprocessing import hampel_filter, interpolate_gaps
 from lp_optimize.imu import accel_to_displacement, lms_anc
 from lp_optimize.attitude import complementary_attitude, project_to_vertical
 from lp_optimize.iri import compute_iri
+from lp_optimize.pipeline import pipeline_idle_off
 from lp_optimize.profile import time_to_space
 
 
@@ -81,3 +82,18 @@ def test_iri_sinusoidal_road_is_positive():
     h = 0.005 * np.sin(2 * np.pi * s / 5.0)  # 5 m wavelength, 5 mm amp
     iri = compute_iri(s, h)
     assert iri > 0.5  # should be a clearly non-trivial value
+
+
+def test_pipeline_idle_off_suppresses_residual_spikes():
+    rng = np.random.default_rng(2)
+    fs = 2000.0
+    n = int(fs * 3.0)
+    t = np.arange(n) / fs
+    x = 1.5 + 4e-5 * np.sin(2 * np.pi * 2.0 * t) + rng.normal(0.0, 1.5e-5, n)
+    spike_idx = np.array([800, 2400, 4200])
+    x[spike_idx] += np.array([2.5e-3, -2.0e-3, 3.0e-3])
+
+    result = pipeline_idle_off(x, fs=fs, decimate_to=None)
+
+    assert np.max(np.abs(result.fluctuation[spike_idx])) < 2.5e-4
+    assert abs(np.median(result.elevation) - 1.5) < 5e-4

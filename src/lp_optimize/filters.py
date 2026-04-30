@@ -1,9 +1,9 @@
-"""Zero-phase low/high/band-pass filters and Savitzky-Golay smoother."""
+"""Zero-phase filters plus median / Savitzky-Golay smoothers."""
 
 from __future__ import annotations
 
 import numpy as np
-from scipy import signal
+from scipy import ndimage, signal
 
 
 def butter_filter(
@@ -34,6 +34,15 @@ def savgol(x: np.ndarray, window: int = 51, order: int = 3) -> np.ndarray:
         window += 1
     window = max(window, order + 2 + (order % 2 == 0))
     return signal.savgol_filter(np.asarray(x, dtype=float), window, order)
+
+
+def median_filter(x: np.ndarray, window: int = 9) -> np.ndarray:
+    """Median smoothing with edge-preserving nearest padding."""
+    if window <= 1:
+        return np.asarray(x, dtype=float)
+    if window % 2 == 0:
+        window += 1
+    return ndimage.median_filter(np.asarray(x, dtype=float), size=window, mode="nearest")
 
 
 def antialias_decimate(x: np.ndarray, fs: float, fs_out: float) -> tuple[np.ndarray, float]:

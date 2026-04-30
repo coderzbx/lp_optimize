@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .attitude import complementary_attitude, project_to_vertical
-from .filters import butter_filter, savgol, antialias_decimate
+from .filters import antialias_decimate, butter_filter, median_filter, savgol
 from .imu import accel_to_displacement, lms_anc
 from .iri import compute_iri
 from .metrics import std_rms, welch_psd, StdRms
@@ -50,14 +50,38 @@ class DrivingResult:
 # ---------------------------------------------------------------------------
 
 
+def _idle_residual_cleanup(
+    x: np.ndarray,
+    fs: float,
+    *,
+    residual_hampel_window: int,
+    residual_hampel_sigma: float,
+    median_window: int,
+    smooth_cutoff: float,
+    savgol_window: int,
+    savgol_order: int,
+) -> np.ndarray:
+    """Extra robust smoothing for stationary idle traces."""
+    x = hampel_filter(x, window=residual_hampel_window, n_sigma=residual_hampel_sigma)
+    x = median_filter(x, window=median_window)
+    x = butter_filter(x, fs=fs, cutoff=smooth_cutoff, btype="lowpass", order=4)
+    x = savgol(x, window=savgol_window, order=savgol_order)
+    return x
+
+
 def pipeline_idle_off(
     elevation: np.ndarray,
     fs: float = 2000.0,
     *,
     hampel_window: int = 21,
     hampel_sigma: float = 3.0,
+    residual_hampel_window: int = 61,
+    residual_hampel_sigma: float = 2.5,
+    median_window: int = 9,
     drift_cutoff: float = 0.05,
-    smooth_cutoff: float = 100.0,
+    smooth_cutoff: float = 40.0,
+    savgol_window: int = 41,
+    savgol_order: int = 3,
     decimate_to: float | None = 100.0,
 ) -> IdleResult:
     """Process problem-1 data (engine off, vehicle still).
@@ -72,7 +96,16 @@ def pipeline_idle_off(
     x = hampel_filter(x, window=hampel_window, n_sigma=hampel_sigma)
     baseline = float(np.median(x))
     x = highpass_detrend(x, fs=fs, fc=drift_cutoff)
-    x = butter_filter(x, fs=fs, cutoff=smooth_cutoff, btype="lowpass", order=4)
+    x = _idle_residual_cleanup(
+        x,
+        fs,
+        residual_hampel_window=residual_hampel_window,
+        residual_hampel_sigma=residual_hampel_sigma,
+        median_window=median_window,
+        smooth_cutoff=smooth_cutoff,
+        savgol_window=savgol_window,
+        savgol_order=savgol_order,
+    )
     fs_out = fs
     if decimate_to is not None and decimate_to < fs:
         x, fs_out = antialias_decimate(x, fs=fs, fs_out=decimate_to)
@@ -100,12 +133,17 @@ def pipeline_idle_on(
     *,
     hampel_window: int = 21,
     hampel_sigma: float = 3.0,
+    residual_hampel_window: int = 61,
+    residual_hampel_sigma: float = 2.5,
+    median_window: int = 9,
     drift_cutoff: float = 0.05,
     accel_band: tuple[float, float] = (0.5, 80.0),
     use_anc: bool = True,
     anc_taps: int = 128,
     anc_mu: float = 0.05,
-    smooth_cutoff: float = 100.0,
+    smooth_cutoff: float = 40.0,
+    savgol_window: int = 41,
+    savgol_order: int = 3,
     decimate_to: float | None = 100.0,
 ) -> IdleResult:
     """Process problem-2 data (idle, stationary, with vertical accelerometer).
@@ -142,7 +180,16 @@ def pipeline_idle_on(
         # let the LMS filter learn the leftover transfer function.
         x_comp, _ = lms_anc(x_comp, z_body, n_taps=anc_taps, mu=anc_mu)
 
-    x_comp = butter_filter(x_comp, fs=fs, cutoff=smooth_cutoff, btype="lowpass", order=4)
+    x_comp = _idle_residual_cleanup(
+        x_comp,
+        fs,
+        residual_hampel_window=residual_hampel_window,
+        residual_hampel_sigma=residual_hampel_sigma,
+        median_window=median_window,
+        smooth_cutoff=smooth_cutoff,
+        savgol_window=savgol_window,
+        savgol_order=savgol_order,
+    )
 
     fs_out = fs
     if decimate_to is not None and decimate_to < fs:
