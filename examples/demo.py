@@ -25,7 +25,7 @@ from lp_optimize import (
 )
 
 
-FS = 1000.0
+FS = 2000.0
 DURATION = 60.0  # 1 minute is enough for a demo
 PLOT_DIR = os.path.join(os.path.dirname(__file__), "plots")
 

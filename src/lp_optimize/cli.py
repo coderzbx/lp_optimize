@@ -23,7 +23,13 @@ from pathlib import Path
 import numpy as np
 
 from .filters import butter_filter
-from .io_csv import read_input_csv, read_result_csv, write_result_csv
+from .io_csv import (
+    read_input_csv_with_timestamps,
+    read_result_csv,
+    read_result_csv_full,
+    resample_series_axis,
+    write_result_csv,
+)
 from .pipeline import pipeline_idle_off, pipeline_idle_on
 from .preprocessing import highpass_detrend
 
@@ -33,10 +39,15 @@ from .preprocessing import highpass_detrend
 # ---------------------------------------------------------------------------
 
 
-def _print_metrics(label: str, elevation_m: np.ndarray) -> None:
-    std = float(np.std(elevation_m))
-    rms = float(np.sqrt(np.mean(elevation_m ** 2)))
-    pp = float(np.ptp(elevation_m))
+def _print_metrics(
+    label: str,
+    elevation_m: np.ndarray,
+    fluctuation_m: np.ndarray | None = None,
+) -> None:
+    signal = elevation_m if fluctuation_m is None else fluctuation_m
+    std = float(np.std(signal))
+    rms = float(np.sqrt(np.mean(signal ** 2)))
+    pp = float(np.ptp(signal))
     print(
         f"[{label}] n={elevation_m.size}  "
         f"std={std * 1e3:.4f} mm  "
@@ -46,17 +57,28 @@ def _print_metrics(label: str, elevation_m: np.ndarray) -> None:
 
 
 def cmd_idle_off(args: argparse.Namespace) -> int:
-    elev_m, _ = read_input_csv(args.input, need_accel=False)
+    timestamps_s, elev_m, _ = read_input_csv_with_timestamps(
+        args.input, need_accel=False
+    )
     decimate_to = None if args.no_decimate else args.decimate_to
     result = pipeline_idle_off(elev_m, fs=args.fs, decimate_to=decimate_to)
-    write_result_csv(args.output, result.elevation, fs=result.fs)
-    _print_metrics("idle-off", result.elevation)
+    timestamps_out = resample_series_axis(timestamps_s, result.elevation.size)
+    write_result_csv(
+        args.output,
+        result.elevation,
+        fs=result.fs,
+        fluctuation_m=result.fluctuation,
+        timestamps_s=timestamps_out,
+    )
+    _print_metrics("idle-off", result.elevation, result.fluctuation)
     print(f"wrote {args.output}  (fs_out={result.fs:g} Hz)")
     return 0
 
 
 def cmd_idle_on(args: argparse.Namespace) -> int:
-    elev_m, accel = read_input_csv(args.input, need_accel=True)
+    timestamps_s, elev_m, accel = read_input_csv_with_timestamps(
+        args.input, need_accel=True
+    )
     assert accel is not None  # for type checkers
     decimate_to = None if args.no_decimate else args.decimate_to
     result = pipeline_idle_on(
@@ -66,8 +88,15 @@ def cmd_idle_on(args: argparse.Namespace) -> int:
         use_anc=not args.no_anc,
         decimate_to=decimate_to,
     )
-    write_result_csv(args.output, result.elevation, fs=result.fs)
-    _print_metrics("idle-on", result.elevation)
+    timestamps_out = resample_series_axis(timestamps_s, result.elevation.size)
+    write_result_csv(
+        args.output,
+        result.elevation,
+        fs=result.fs,
+        fluctuation_m=result.fluctuation,
+        timestamps_s=timestamps_out,
+    )
+    _print_metrics("idle-on", result.elevation, result.fluctuation)
     print(f"wrote {args.output}  (fs_out={result.fs:g} Hz)")
     return 0
 
@@ -85,7 +114,8 @@ def align_to_reference(
     drift_cutoff: float = 0.05,
     smooth_cutoff: float | None = None,
     match_std: bool = True,
-) -> np.ndarray:
+    return_fluctuation: bool = False,
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """Optimise ``target_m`` so its fluctuation level matches ``reference_m``.
 
     The two series do **not** need to have the same length: the reference
@@ -105,6 +135,7 @@ def align_to_reference(
     """
     target = np.asarray(target_m, dtype=float).copy()
     reference = np.asarray(reference_m, dtype=float)
+    baseline = float(np.median(target))
 
     target = highpass_detrend(target, fs=fs, fc=drift_cutoff)
 
@@ -121,29 +152,41 @@ def align_to_reference(
         if s_tgt > 1e-12 and s_ref > 0:
             target = target * (s_ref / s_tgt)
 
-    return target
+    aligned = baseline + target
+    if return_fluctuation:
+        return aligned, target
+    return aligned
 
 
 def cmd_align(args: argparse.Namespace) -> int:
-    ref_m, fs_ref = read_result_csv(args.reference)
-    tgt_m, fs_tgt = read_result_csv(args.target)
+    _, ref_m, ref_fluct, _ = read_result_csv_full(args.reference)
+    _, tgt_m, tgt_fluct, timestamp_tgt = read_result_csv_full(args.target)
+    fs_ref = read_result_csv(args.reference)[1]
+    fs_tgt = read_result_csv(args.target)[1]
     if abs(fs_ref - fs_tgt) > 1e-6:
         print(
             f"warning: reference fs={fs_ref:g} Hz != target fs={fs_tgt:g} Hz; "
             f"using target fs for filtering",
             file=sys.stderr,
         )
-    aligned = align_to_reference(
+    aligned, aligned_fluct = align_to_reference(
         tgt_m,
         ref_m,
         fs=fs_tgt,
         match_std=not args.no_match_std,
+        return_fluctuation=True,
     )
-    write_result_csv(args.output, aligned, fs=fs_tgt)
+    write_result_csv(
+        args.output,
+        aligned,
+        fs=fs_tgt,
+        fluctuation_m=aligned_fluct,
+        timestamps_s=timestamp_tgt,
+    )
 
-    _print_metrics("reference ", ref_m)
-    _print_metrics("input     ", tgt_m)
-    _print_metrics("aligned   ", aligned)
+    _print_metrics("reference ", ref_m, ref_fluct)
+    _print_metrics("input     ", tgt_m, tgt_fluct)
+    _print_metrics("aligned   ", aligned, aligned_fluct)
     print(f"wrote {args.output}  (fs_out={fs_tgt:g} Hz)")
     return 0
 
@@ -159,8 +202,8 @@ def _add_idle_common(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--fs",
         type=float,
-        default=1000.0,
-        help="input sample rate in Hz (default: 1000)",
+        default=2000.0,
+        help="input sample rate in Hz (default: 2000)",
     )
     p.add_argument(
         "--decimate-to",
@@ -191,7 +234,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="problem 1: engine-off elevation cleanup",
         description=(
             "Read an engine-off CSV (column 2 = elevation in mm) and "
-            "write the processed Result_*.csv (column = elevation_mm)."
+            "write the processed Result_*.csv with time axis, absolute "
+            "elevation, fluctuation, and source timestamp columns."
         ),
     )
     _add_idle_common(p1)
