@@ -127,14 +127,14 @@ def build_row(sample: RawImuSample, scale: ImuScale) -> list[str | int]:
     x_rate = x_dangle / dt
     y_rate = -neg_y_rate
 
-    unix_time_gps = GPS_EPOCH_UNIX + sample.week * 604800 + sample.seconds
-    unix_time_utc_est = unix_time_gps - GPS_LEAP_SECONDS
+    unix_time_no_leap = GPS_EPOCH_UNIX + sample.week * 604800 + sample.seconds
+    unix_time_with_leap = unix_time_no_leap + GPS_LEAP_SECONDS
 
     return [
         sample.week,
         f"{sample.seconds:.8f}",
-        f"{unix_time_gps:.8f}",
-        f"{unix_time_utc_est:.8f}",
+        f"{unix_time_no_leap:.8f}",
+        f"{unix_time_with_leap:.8f}",
         sample.imu_info,
         sample.imu_type,
         sample.imu_status,
@@ -172,8 +172,8 @@ def parse_log(input_path: Path, output_path: Path, limit: int | None) -> tuple[i
     header = [
         "week",
         "seconds",
-        "unix_time_gps",
-        "unix_time_utc_est",
+        "unix_time_no_leap",
+        "unix_time_with_leap",
         "imu_info",
         "imu_type",
         "imu_status",
