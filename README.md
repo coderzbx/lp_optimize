@@ -70,6 +70,34 @@ source ``timestamp_s`` plus the absolute optimized elevation
 alignment / comparison with other result files.  By default the output is
 decimated to 100 Hz; pass ``--no-decimate`` to keep the input rate.
 
+## C++ version for problem 2 (`C040.csv -> Result_C040.csv`)
+
+A standalone C++17 implementation of the **engine on + accelerometer**
+pipeline lives in [`cpp/problem2_idle_on.cpp`](cpp/problem2_idle_on.cpp).
+It mirrors the Python `idle-on` flow: CSV read -> Hampel cleanup ->
+band-limited acceleration double integration -> deterministic compensation ->
+optional NLMS residual cancellation -> smoothing -> decimation -> `Result_C040.csv`.
+
+Build with any C++17 compiler, for example:
+
+```powershell
+g++ -O2 -std=c++17 -o problem2_idle_on.exe .\cpp\problem2_idle_on.cpp
+# or
+cl /EHsc /O2 /std:c++17 .\cpp\problem2_idle_on.cpp /Fe:problem2_idle_on.exe
+```
+
+Run it like this:
+
+```powershell
+.\problem2_idle_on.exe C040.csv Result_C040.csv --fs 2000
+```
+
+Optional flags:
+
+1. `--decimate-to 100` decimates the output to the target Hz rate.
+2. `--no-decimate` keeps the original input sample rate.
+3. `--no-anc` disables the adaptive noise canceller stage.
+
 
 ## Generate line plots from your own data
 
