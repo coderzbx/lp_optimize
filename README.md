@@ -64,9 +64,9 @@ python -m lp_optimize align Result_C001.csv Result_C040.csv Result_C040_aligned.
 
 After ``pip install -e .`` the same commands are available as
 ``lp-optimize idle-off ...`` etc.  Output ``Result_*.csv`` files keep the
-processed time axis ``t_s`` plus the absolute optimized elevation
+source ``timestamp_s`` plus the absolute optimized elevation
 ``elevation_mm``.  When available they also include the zero-mean
-``fluctuation_mm`` column and the source ``timestamp_s`` column for later
+``fluctuation_mm`` column and the processing-time ``t_s`` column for later
 alignment / comparison with other result files.  By default the output is
 decimated to 100 Hz; pass ``--no-decimate`` to keep the input rate.
 

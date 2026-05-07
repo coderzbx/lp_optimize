@@ -183,4 +183,4 @@ def test_cli_idle_off_then_idle_on_then_align(tmp_path: Path) -> None:
 
     with open(r1, "r", encoding="utf-8") as fh:
         header = fh.readline().strip()
-    assert header == "t_s,elevation_mm,fluctuation_mm,timestamp_s"
+    assert header == "timestamp_s,elevation_mm,fluctuation_mm,t_s"

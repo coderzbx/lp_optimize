@@ -185,10 +185,11 @@ def write_result_csv(
 ) -> None:
     """Write a processed elevation series to ``path``.
 
-    The output file always contains a processing time axis ``t_s`` and the
-    absolute processed elevation ``elevation_mm``.  Optional columns for the
-    zero-mean fluctuation component and the source timestamp axis are emitted
-    when provided.
+    The output file always contains the source timestamp axis
+    ``timestamp_s`` first, followed by the absolute processed elevation
+    ``elevation_mm``. Optional columns for the zero-mean fluctuation
+    component and the processing time axis ``t_s`` are emitted when
+    provided.
     """
     elevation_m = np.asarray(elevation_m, dtype=float)
     n = elevation_m.size
@@ -202,18 +203,20 @@ def write_result_csv(
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        header = ["t_s", "elevation_mm"]
+        header = ["elevation_mm"]
+        if ts is not None:
+            header.insert(0, "timestamp_s")
         if fluct is not None:
             header.append("fluctuation_mm")
-        if ts is not None:
-            header.append("timestamp_s")
+        header.append("t_s")
         writer.writerow(header)
         for i, (ti, hi) in enumerate(zip(t, elevation_m * 1e3)):
-            row = [f"{ti:.6f}", f"{hi:.6f}"]
+            row = [f"{hi:.6f}"]
+            if ts is not None:
+                row.insert(0, f"{ts[i]:.6f}")
             if fluct is not None:
                 row.append(f"{fluct[i] * 1e3:.6f}")
-            if ts is not None:
-                row.append(f"{ts[i]:.6f}")
+            row.append(f"{ti:.6f}")
             writer.writerow(row)
 
 
